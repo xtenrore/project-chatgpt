@@ -19,12 +19,14 @@ jobs:
       - name: Syntax check
         run: |
           node --check app.js
+          node --check mobile-nav.js
+          node --check server.mjs
           node --check extension/background.js
           node --check extension/content-chatgpt.js
           node --check extension/content-supervisor.js
           node --check extension/popup.js
           node --check extension/protocol.js
-      - name: Protocol tests
+      - name: Protocol and server tests
         run: npm test
       - name: Validate JSON and extension references
         run: |
@@ -39,3 +41,11 @@ jobs:
           const missing = [...new Set(refs)].filter(file => !fs.existsSync(path.join('extension', file)))
           if (missing.length) throw new Error(`Missing extension files: ${missing.join(', ')}`)
           NODE
+      - name: Validate mobile drawer wiring
+        run: |
+          grep -q 'id="mobileMenu"' index.html
+          grep -q 'aria-controls="appSidebar"' index.html
+          grep -q '/mobile-nav.css' index.html
+          grep -q '/mobile-nav.js' index.html
+          grep -q 'mobile-open' mobile-nav.css
+          grep -q "mobileMenu" mobile-nav.js
