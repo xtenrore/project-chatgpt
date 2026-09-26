@@ -13,6 +13,7 @@
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://*.vercel.app/*",
+    "https://*.up.railway.app/*",
     "http://localhost:*/*"
   ],
   "background": {
@@ -42,6 +43,7 @@
     {
       "matches": [
         "https://*.vercel.app/*",
+        "https://*.up.railway.app/*",
         "http://localhost:*/*"
       ],
       "js": [
