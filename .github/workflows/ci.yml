@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check
+        run: |
+          node --check app.js
+          node --check extension/background.js
+          node --check extension/content-chatgpt.js
+          node --check extension/content-supervisor.js
+          node --check extension/popup.js
+          node --check extension/protocol.js
+      - name: Protocol tests
+        run: npm test
+      - name: Validate JSON and extension references
+        run: |
+          node - <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+          const manifest = JSON.parse(fs.readFileSync('extension/manifest.json', 'utf8'))
+          JSON.parse(fs.readFileSync('vercel.json', 'utf8'))
+          const refs = [manifest.background.service_worker, manifest.action.default_popup]
+          for (const cs of manifest.content_scripts) refs.push(...cs.js)
+          refs.push(...Object.values(manifest.icons || {}))
+          const missing = [...new Set(refs)].filter(file => !fs.existsSync(path.join('extension', file)))
+          if (missing.length) throw new Error(`Missing extension files: ${missing.join(', ')}`)
+          NODE
