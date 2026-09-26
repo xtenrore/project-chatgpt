@@ -109,9 +109,9 @@ function normalizeOption(label) {
 function rankModelLabel(label) {
   const s = normalizeOption(label)
   if (!s || /upgrade|subscribe|learn more|get pro|try pro/.test(s)) return 0
-  if (/gpt[- ]?6\s*astra/.test(s)) return 200
-  if (/gpt[- ]?6\s*sol/.test(s)) return 190
-  if (/gpt[- ]?6\s*luna/.test(s)) return 180
+  if (/gpt[- ]?6[-\s]*astra/.test(s)) return 200
+  if (/gpt[- ]?6[-\s]*sol/.test(s)) return 190
+  if (/gpt[- ]?6[-\s]*luna/.test(s)) return 180
   if (/gpt[- ]?6\s*pro/.test(s)) return 170
   if (/gpt[- ]?5\.6\s*(?:sol\s*)?pro/.test(s)) return 165
   if (/gpt[- ]?5\.6\s*sol/.test(s)) return 155
