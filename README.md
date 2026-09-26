@@ -1,72 +1,63 @@
-# Project Supervisor
+# Project Supervisor v0.1
 
-Prototype orchestration layer for long-running ChatGPT Project work.
+A first prototype of a persistent supervisor for long-running **ChatGPT Project** work.
 
-## What it does
+Production dashboard: `https://project-supervisor-production.up.railway.app`
 
-- Uses your normal logged-in `chatgpt.com` session; it does **not** ask for or store your ChatGPT password.
-- Opens the ChatGPT Project/conversation URL you provide and sends the full job there.
-- Best-effort selects the highest recognized model and reasoning level that are **actually enabled and visible in your account's Chat UI**. Strict Model Guard is on by default and pauses instead of silently using an unverified lower model.
-- Watches visible ChatGPT output and keeps a persistent browser-side job ledger.
-- If ChatGPT reports a usage/message limit, marks the job `paused_limit` and does not retry around it.
-- If an active generation shows no observable progress for the configured threshold (default 10 minutes), stops that generation once, preserves the last checkpoint excerpt, and sends a recovery continuation prompt.
-- Auto-continues when the worker explicitly reports `state=continue` in the injected supervisor protocol.
-- Marks completion only when the worker explicitly reports `state=complete`.
-- Browser notifications are used for completion, limits, and genuine attention states.
+The worker is the normal `chatgpt.com` tab you are already logged into. A Chrome/Edge extension stores a persistent job ledger, watches a selected ChatGPT Project conversation, pauses at product limits, detects genuine no-progress stalls, and sends checkpoint-aware continuation prompts when appropriate.
 
-## Important prototype boundary
+## Non-negotiable rules
 
-This is a browser-UI bridge, so ChatGPT UI changes can break selectors. It is deliberately fail-closed in Strict Model Guard mode. It does not bypass ChatGPT plan limits, spoof accounts, rotate sessions, or use hidden/private ChatGPT endpoints.
+- **Never bypass ChatGPT limits.** A detected usage/message limit becomes `paused_limit`. There is no account rotation, hidden endpoint use, session spoofing, or retrying around the limit.
+- **Use the strongest visible Chat option.** Strict Model Guard inspects model/reasoning controls exposed to the logged-in account and attempts to select the strongest recognized enabled option. If it cannot verify the picker safely, it fails closed rather than silently downgrading.
+- **Authentication stays in ChatGPT.** The extension never asks for or stores your ChatGPT password.
+- **The dashboard or phone may be closed.** Job state lives in `chrome.storage.local`. For v0.1, the desktop computer running Chrome/Edge must remain powered on and awake and the browser must remain running.
+- **Fail closed on uncertainty.** A 10-minute watchdog only stops a turn when the worker is still visibly generating and no observable output has changed. Otherwise it requests attention instead of blindly clicking.
 
-The supervisor extension keeps working when the dashboard/phone is closed **as long as the computer running Chrome/Edge stays awake and the browser remains running**. A sleeping or powered-off computer cannot continue browser-UI automation. A later hosted-browser/server version can remove that machine dependency, but would need a secure supported login/session design.
+## Current behavior
 
-## Deploy the dashboard
+- Persistent jobs with original objective + exact ChatGPT Project/conversation URL.
+- Structured `<agent-status>` protocol: `continue`, `complete`, or `needs_user`.
+- Terminal assistant responses are fingerprinted and processed once, preventing duplicate continuation loops.
+- Default 10-minute no-output watchdog (configurable 5–30 minutes).
+- Confirmed stall: preserve the latest visible assistant output, stop the active generation once, then continue from that checkpoint with explicit instructions not to restart completed work.
+- Repeated terminal output triggers a change-of-approach continuation.
+- Browser notifications for completion, usage limits, and attention states.
+- No paid runtime AI/API dependency is required for the supervisor itself.
 
-The dashboard is zero-dependency and supports both requested hosts.
+## Install the extension
 
-### Vercel
+1. Download/unzip the `extension/` directory (or the provided extension ZIP).
+2. In desktop Chrome, open `chrome://extensions`; in Edge open the Extensions page.
+3. Enable **Developer mode**.
+4. Choose **Load unpacked** and select the unzipped `extension/` folder.
+5. Stay logged into `https://chatgpt.com` in that browser.
+6. Open **Project Supervisor Bridge** and click **Open Supervisor**. The production dashboard URL is preconfigured.
+7. Create a job using the exact ChatGPT Project/conversation URL you want supervised, such as the Plane Alerts project chat.
 
-[Deploy to Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fxtenrore%2Fproject-chatgpt&project-name=project-chatgpt&repository-name=project-chatgpt)
-
-No environment variables are required for the prototype. The repository includes `vercel.json`.
-
-### Railway
-
-Create a service from `xtenrore/project-chatgpt`. Railway can use the included `npm start` command automatically; the server listens on Railway's `PORT`. Health endpoint: `/health`.
-
-## Install the extension (prototype)
-
-1. Open `chrome://extensions` (or Edge extensions).
-2. Enable **Developer mode**.
-3. Choose **Load unpacked** and select the `extension/` directory.
-4. Open the extension popup.
-5. Set the deployed supervisor website origin, for example a `*.vercel.app` or `*.up.railway.app` origin.
-6. Click **Open Supervisor**. The pairing key is passed in the URL fragment, saved locally by the site, then immediately removed from the address bar.
-7. Paste the exact `https://chatgpt.com/...` Project/conversation URL into a new job and start it.
-
-## Security model
-
-- Pairing key is generated locally in `chrome.storage.local`.
-- The extension accepts supervisor commands only from the configured website origin and only with the local key.
-- Job prompts and checkpoints are stored locally in the extension for this prototype.
-- The extension has host access only to `chatgpt.com`, Vercel default deployment origins, Railway default deployment origins, and localhost for development.
-
-## Status footer injected into worker jobs
-
-The worker is instructed to end turns with:
+## Architecture
 
 ```text
-<agent-status>{"state":"continue|complete|needs_user","summary":"...","next":"..."}</agent-status>
+Dashboard (may be closed)
+        │ locally paired page bridge
+        ▼
+Chrome/Edge extension service worker
+        │ persistent ledger + watchdog
+        ▼
+Logged-in chatgpt.com Project/conversation tab
 ```
 
-This makes continuation deterministic enough for the first prototype instead of asking another paid AI model every few seconds whether the worker is done.
+## Run locally
 
-## Verification
-
-Run:
+No dependency install is required.
 
 ```bash
 npm test
+npm start
 ```
 
-GitHub Actions also checks JavaScript syntax, protocol tests, JSON validity, and referenced extension files on every push to `main` and on pull requests.
+Open `http://localhost:3000`. Health endpoint: `/health`.
+
+## Prototype boundary
+
+This deliberately operates the public ChatGPT web interface instead of private ChatGPT endpoints. That means a ChatGPT UI change can require selector maintenance. Syntax, protocol, manifest, local HTTP behavior, Railway build/runtime startup, domain provisioning, and packaging are validated; the live logged-in ChatGPT selector path must be exercised from the user browser because the repository/deployment environment does not have access to the user's authenticated ChatGPT session.
