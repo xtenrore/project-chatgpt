@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Project Supervisor</title>
+  <style>
+    :root{font-family:Inter,system-ui,sans-serif;color:#eef2f7;background:#0b0f14}*{box-sizing:border-box}body{margin:0;width:340px;padding:16px;background:#0b0f14}h1{font-size:16px;margin:0 0 4px}p{font-size:11px;color:#8390a0;line-height:1.5;margin:0 0 16px}.card{border:1px solid #29333f;background:#11171e;border-radius:12px;padding:13px;margin-bottom:10px}label{display:block;color:#aab5c3;font-size:11px;font-weight:700;margin-bottom:6px}input{width:100%;border:1px solid #303b48;background:#0a0f14;color:#e9eef5;padding:9px;border-radius:8px;outline:none;font-size:11px}code{display:block;word-break:break-all;color:#a8b8c9;background:#0a0f14;border:1px solid #27303a;border-radius:8px;padding:9px;font-size:10px;margin-top:6px}button{width:100%;border:1px solid #dce3ea;background:#e5ebf1;color:#11161c;border-radius:8px;padding:9px 10px;font-weight:800;font-size:11px;cursor:pointer;margin-top:8px}.secondary{background:#141b23;color:#aab6c4;border-color:#2c3744}.row{display:flex;gap:8px}.row button{width:50%}.status{font-size:10px;color:#7f8d9d;margin-top:8px;min-height:15px}.good{color:#8fc09f}.bad{color:#db958c}
+  </style>
+</head>
+<body>
+  <h1>Project Supervisor Bridge</h1>
+  <p>Keep Chrome open on your computer. The extension supervises ChatGPT Project tabs even when the dashboard page is closed.</p>
+  <div class="card">
+    <label for="origin">Supervisor website origin</label>
+    <input id="origin" placeholder="https://your-project.vercel.app" />
+    <button id="save">Save configuration</button>
+  </div>
+  <div class="card">
+    <label>Local pairing key</label>
+    <code id="key">Loading…</code>
+    <div class="row">
+      <button class="secondary" id="copy">Copy key</button>
+      <button class="secondary" id="regen">Regenerate</button>
+    </div>
+    <button id="open">Open Supervisor</button>
+    <div id="status" class="status"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
