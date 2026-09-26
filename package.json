@@ -1,13 +1,11 @@
 {
   "name": "project-supervisor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node tests/protocol.test.mjs"
+    "test": "node tests/protocol.test.mjs && node tests/server.test.mjs"
   },
-  "engines": {
-    "node": ">=20"
-  }
+  "engines": { "node": ">=20" }
 }
