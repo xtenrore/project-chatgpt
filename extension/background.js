@@ -254,6 +254,13 @@ async function watchdogTick() {
         await notify(`${job.title} paused`, job.warning)
         continue
       }
+      if (probe?.assistantText && probe.assistantText !== job.lastAssistantText) {
+        job.lastAssistantText = String(probe.assistantText)
+        job.lastProgressAt = now
+        job.progressLabel = 'ChatGPT is working; new output detected.'
+        changed = true
+        continue
+      }
       if (probe?.assistantText) job.lastAssistantText = String(probe.assistantText)
       if (probe?.generating) {
         job.status = 'recovering'
@@ -335,7 +342,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message.requestType === 'PAUSE_JOB') {
           const result = await updateJob(payload.jobId, async job => {
             job.status = 'needs_attention'; job.progressLabel = 'Paused by user.'; job.warning = 'Paused manually.'; job.pendingReason = ''
-            if (job.tabId) await safeSend(job.tabId, { type: 'SUPERVISOR_STOP_GENERATION', jobId: job.id })
+            if (job.tabId) {
+              const reply = await safeSend(job.tabId, { type: 'SUPERVISOR_STOP_GENERATION', jobId: job.id })
+              if (!reply?.ok) job.warning = 'Pause requested, but the extension could not confirm the ChatGPT tab received it. Check the tab.'
+            }
           })
           sendResponse({ ok: true, data: publicState(result.state) }); return
         }
