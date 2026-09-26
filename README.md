@@ -6,7 +6,7 @@ Prototype orchestration layer for long-running ChatGPT Project work.
 
 - Uses your normal logged-in `chatgpt.com` session; it does **not** ask for or store your ChatGPT password.
 - Opens the ChatGPT Project/conversation URL you provide and sends the full job there.
-- Best-effort selects the highest recognized model that is **actually visible in your account's model picker**. Strict Model Guard is on by default and pauses instead of silently using an unverified lower model.
+- Best-effort selects the highest recognized model and reasoning level that are **actually enabled and visible in your account's Chat UI**. Strict Model Guard is on by default and pauses instead of silently using an unverified lower model.
 - Watches visible ChatGPT output and keeps a persistent browser-side job ledger.
 - If ChatGPT reports a usage/message limit, marks the job `paused_limit` and does not retry around it.
 - If an active generation shows no observable progress for the configured threshold (default 10 minutes), stops that generation once, preserves the last checkpoint excerpt, and sends a recovery continuation prompt.
@@ -20,9 +20,19 @@ This is a browser-UI bridge, so ChatGPT UI changes can break selectors. It is de
 
 The supervisor extension keeps working when the dashboard/phone is closed **as long as the computer running Chrome/Edge stays awake and the browser remains running**. A sleeping or powered-off computer cannot continue browser-UI automation. A later hosted-browser/server version can remove that machine dependency, but would need a secure supported login/session design.
 
-## Install the web app
+## Deploy the dashboard
 
-No build step is required. The dashboard is a zero-dependency static site (`index.html`, `app.js`, `styles.css`). Deploy the repository root directly to Vercel.
+The dashboard is zero-dependency and supports both requested hosts.
+
+### Vercel
+
+[Deploy to Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fxtenrore%2Fproject-chatgpt&project-name=project-chatgpt&repository-name=project-chatgpt)
+
+No environment variables are required for the prototype. The repository includes `vercel.json`.
+
+### Railway
+
+Create a service from `xtenrore/project-chatgpt`. Railway can use the included `npm start` command automatically; the server listens on Railway's `PORT`. Health endpoint: `/health`.
 
 ## Install the extension (prototype)
 
@@ -30,7 +40,7 @@ No build step is required. The dashboard is a zero-dependency static site (`inde
 2. Enable **Developer mode**.
 3. Choose **Load unpacked** and select the `extension/` directory.
 4. Open the extension popup.
-5. Set the deployed supervisor website origin, e.g. `https://project-chatgpt.vercel.app`.
+5. Set the deployed supervisor website origin, for example a `*.vercel.app` or `*.up.railway.app` origin.
 6. Click **Open Supervisor**. The pairing key is passed in the URL fragment, saved locally by the site, then immediately removed from the address bar.
 7. Paste the exact `https://chatgpt.com/...` Project/conversation URL into a new job and start it.
 
@@ -39,7 +49,7 @@ No build step is required. The dashboard is a zero-dependency static site (`inde
 - Pairing key is generated locally in `chrome.storage.local`.
 - The extension accepts supervisor commands only from the configured website origin and only with the local key.
 - Job prompts and checkpoints are stored locally in the extension for this prototype.
-- The extension has host access only to `chatgpt.com`, Vercel preview/production origins, and localhost for development.
+- The extension has host access only to `chatgpt.com`, Vercel default deployment origins, Railway default deployment origins, and localhost for development.
 
 ## Status footer injected into worker jobs
 
@@ -50,3 +60,13 @@ The worker is instructed to end turns with:
 ```
 
 This makes continuation deterministic enough for the first prototype instead of asking another paid AI model every few seconds whether the worker is done.
+
+## Verification
+
+Run:
+
+```bash
+npm test
+```
+
+GitHub Actions also checks JavaScript syntax, protocol tests, JSON validity, and referenced extension files on every push to `main` and on pull requests.
