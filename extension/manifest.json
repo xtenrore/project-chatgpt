@@ -13,8 +13,8 @@
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://*.vercel.app/*",
-    "https://*.up.railway.app/*",
-    "http://localhost:*/*"
+    "http://localhost:*/*",
+    "https://*.up.railway.app/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -23,12 +23,6 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "Project Supervisor"
-  },
-  "icons": {
-    "16": "icon128.png",
-    "32": "icon128.png",
-    "48": "icon128.png",
-    "128": "icon128.png"
   },
   "content_scripts": [
     {
@@ -43,13 +37,19 @@
     {
       "matches": [
         "https://*.vercel.app/*",
-        "https://*.up.railway.app/*",
-        "http://localhost:*/*"
+        "http://localhost:*/*",
+        "https://*.up.railway.app/*"
       ],
       "js": [
         "content-supervisor.js"
       ],
       "run_at": "document_start"
     }
-  ]
+  ],
+  "icons": {
+    "16": "icon128.png",
+    "32": "icon128.png",
+    "48": "icon128.png",
+    "128": "icon128.png"
+  }
 }
