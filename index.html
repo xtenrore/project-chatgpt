@@ -7,6 +7,7 @@
   <meta name="description" content="Project Supervisor — persistent ChatGPT Project supervision with saved chats and accounts." />
   <title>Project Supervisor</title>
   <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/mobile-nav.css" />
 </head>
 <body>
   <div id="authLanding" class="landing">
@@ -37,7 +38,7 @@
   </div>
 
   <div id="appShell" class="app-shell hidden">
-    <aside class="sidebar">
+    <aside id="appSidebar" class="sidebar">
       <div class="sidebar-top">
         <div class="sidebar-brand">Project Supervisor</div>
         <button id="newChatBtn" class="new-chat">＋ New chat</button>
@@ -55,7 +56,7 @@
 
     <section class="workspace">
       <header class="workspace-header">
-        <button id="mobileMenu" class="mobile-menu">☰</button>
+        <button id="mobileMenu" class="mobile-menu" type="button" aria-label="Open navigation" aria-controls="appSidebar" aria-expanded="false">☰</button>
         <div><b id="workspaceTitle">Vercel AI Assistant</b><span id="workspaceSubtitle">Saved to your account</span></div>
         <div class="header-right">
           <span id="assistantStatus" class="status-chip muted">Gateway check…</span>
@@ -155,5 +156,6 @@
   </div>
 
   <script src="/app.js" defer></script>
+  <script src="/mobile-nav.js" defer></script>
 </body>
 </html>
