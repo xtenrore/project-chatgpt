@@ -1,3 +1,4 @@
+const DEFAULT_ORIGIN = 'https://project-supervisor-production.up.railway.app'
 const origin = document.getElementById('origin')
 const key = document.getElementById('key')
 const status = document.getElementById('status')
@@ -9,7 +10,15 @@ function setStatus(text, ok = true) { status.textContent = text; status.classNam
 async function refresh() {
   const res = await msg('POPUP_GET_STATE')
   if (!res?.ok) return setStatus(res?.error || 'Could not load state.', false)
-  origin.value = res.data.allowedOrigin || ''
+  if (!res.data.allowedOrigin) {
+    const saved = await msg('POPUP_SAVE_CONFIG', { allowedOrigin: DEFAULT_ORIGIN })
+    if (!saved?.ok) return setStatus(saved?.error || 'Could not configure Supervisor URL.', false)
+    origin.value = DEFAULT_ORIGIN
+    key.textContent = saved.data.pairKey || ''
+    setStatus('Ready. Click Open Supervisor.')
+    return
+  }
+  origin.value = res.data.allowedOrigin
   key.textContent = res.data.pairKey || ''
 }
 
