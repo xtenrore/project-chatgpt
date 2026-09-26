@@ -3,78 +3,157 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#090c10" />
-  <meta name="description" content="A persistent supervisor for long-running ChatGPT Project work." />
+  <meta name="theme-color" content="#f7f7f5" />
+  <meta name="description" content="Project Supervisor — persistent ChatGPT Project supervision with saved chats and accounts." />
   <title>Project Supervisor</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div class="shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">PS</div>
-        <div><strong>Project Supervisor</strong><span>ChatGPT Project watchdog · prototype v0.1</span></div>
+  <div id="authLanding" class="landing">
+    <header class="landing-nav">
+      <a class="wordmark" href="#">Project Supervisor</a>
+      <div class="nav-actions">
+        <button class="text-btn" data-auth="login">Log in</button>
+        <button class="dark-btn" data-auth="signup">Sign up</button>
       </div>
-      <div id="connection" class="connection offline">● Extension offline</div>
     </header>
-
-    <main>
-      <section class="hero">
-        <div>
-          <div class="eyebrow">Persistent browser-side orchestration</div>
-          <h1>Give ChatGPT the job. Keep the state outside the turn.</h1>
-          <p>Project Supervisor keeps a durable job ledger in your browser extension, watches the real ChatGPT Project tab, detects stalls and limits, and continues only when it is safe to do so. Closing this dashboard or your phone does not stop the extension.</p>
+    <main class="landing-main">
+      <div class="landing-copy">
+        <span class="eyebrow">A calmer way to run long AI jobs</span>
+        <h1>Chat with an assistant.<br/>Hand serious work to ChatGPT.</h1>
+        <p>Save conversations, supervise ChatGPT Project work, recover from stalls, and keep progress even when you close the dashboard.</p>
+        <div class="hero-actions">
+          <button class="dark-btn large" data-auth="signup">Create account</button>
+          <button class="outline-btn large" data-auth="login">Log in</button>
         </div>
-        <div class="principles">
-          <div><div class="symbol">01</div><div><b>Never bypass limits</b><span>A detected ChatGPT usage limit pauses the job. No account rotation, retries around the limit, or hidden endpoints.</span></div></div>
-          <div><div class="symbol">02</div><div><b>Highest visible Chat model</b><span>The extension checks the model/thinking controls shown to your logged-in account and selects the strongest recognized option it can verify.</span></div></div>
-          <div><div class="symbol">03</div><div><b>Progress survives the dashboard</b><span>Job state lives in the extension. Chrome/Edge and the computer must remain running and awake for this first prototype.</span></div></div>
-        </div>
-      </section>
-
-      <div id="pairNotice" class="notice warn-card hidden">
-        <div class="notice-icon">!</div>
-        <div><b>Extension not paired</b><span>Install the unpacked extension, set this website origin in its popup, then click <em>Open Supervisor</em>. The pairing key is kept locally.</span></div>
       </div>
-      <div id="errorNotice" class="notice error-card hidden">
-        <div class="notice-icon">!</div><div><b>Supervisor notice</b><span id="errorText"></span></div>
+      <div class="classic-card">
+        <div class="classic-dots"><span></span><span></span><span></span></div>
+        <div class="classic-message user">Finish Plane Alerts v5.4 and keep every completed step.</div>
+        <div class="classic-message assistant">I’ll keep the objective and checkpoints outside the current ChatGPT turn, watch for stalls, and only report complete when the original requirements are verified.</div>
+        <div class="classic-status">Supervisor ready · limits respected</div>
       </div>
-
-      <section class="layout">
-        <div class="panel compose-panel">
-          <div class="panel-heading"><div><div class="kicker">NEW JOB</div><h2>Supervise a ChatGPT Project task</h2></div></div>
-
-          <label><span>Job title</span><input id="title" maxlength="120" placeholder="e.g. Finish Plane Alerts v5.4" /></label>
-          <label><span>ChatGPT Project / conversation URL</span><input id="projectUrl" inputmode="url" placeholder="https://chatgpt.com/g/... or https://chatgpt.com/c/..." /></label>
-          <label><span>Complete task</span><textarea id="prompt" rows="12" placeholder="Paste the full task exactly as you want ChatGPT to execute it..."></textarea></label>
-
-          <div class="settings-grid">
-            <label><span>No-progress watchdog</span><select id="stallMinutes"><option value="5">5 minutes</option><option value="10" selected>10 minutes</option><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="30">30 minutes</option></select></label>
-            <label class="toggle-row"><span><b>Strict model guard</b><small>Pause instead of silently using an unverified lower model.</small></span><input id="strictModelGuard" type="checkbox" checked /></label>
-            <label class="toggle-row"><span><b>Auto-continue</b><small>Continue only when the worker explicitly reports unfinished work.</small></span><input id="autoContinue" type="checkbox" checked /></label>
-          </div>
-
-          <button id="startButton" class="primary" disabled>Start supervised job</button>
-          <p class="fineprint">The prototype operates the visible ChatGPT UI you are already logged into. It does not store your ChatGPT password.</p>
-        </div>
-
-        <div class="panel jobs-panel">
-          <div class="panel-heading"><div><div class="kicker">LEDGER</div><h2>Supervised jobs</h2></div><button id="refreshButton" class="icon-button" title="Refresh">↻</button></div>
-          <div id="jobs"></div>
-        </div>
-      </section>
-
-      <section class="setup-panel">
-        <div><div class="kicker">ONE-TIME SETUP</div><h2>How the first prototype runs</h2></div>
-        <div class="setup-steps">
-          <div><b>1</b><span>Download or clone <code>xtenrore/project-chatgpt</code>.</span></div>
-          <div><b>2</b><span>Open <code>chrome://extensions</code>, enable Developer mode, and load the <code>extension/</code> folder unpacked.</span></div>
-          <div><b>3</b><span>In the extension popup, enter this deployed site's origin and click <strong>Open Supervisor</strong> to pair it.</span></div>
-          <div><b>4</b><span>Stay logged into <code>chatgpt.com</code>. Start a job here using the exact Plane Alerts Project/chat URL.</span></div>
-        </div>
-      </section>
     </main>
   </div>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">Project Supervisor</div>
+        <button id="newChatBtn" class="new-chat">＋ New chat</button>
+      </div>
+      <nav class="main-nav">
+        <button class="nav-item active" data-view="chat"><span>◻</span> Assistant</button>
+        <button class="nav-item" data-view="supervisor"><span>◎</span> Supervisor</button>
+      </nav>
+      <div class="history-label">Recent chats</div>
+      <div id="chatHistory" class="chat-history"></div>
+      <div class="sidebar-bottom">
+        <button id="accountBtn" class="account-row"><span id="avatar" class="avatar">U</span><span><b id="accountName">Account</b><small id="accountEmail"></small></span><span>⋯</span></button>
+      </div>
+    </aside>
+
+    <section class="workspace">
+      <header class="workspace-header">
+        <button id="mobileMenu" class="mobile-menu">☰</button>
+        <div><b id="workspaceTitle">Vercel AI Assistant</b><span id="workspaceSubtitle">Saved to your account</span></div>
+        <div class="header-right">
+          <span id="assistantStatus" class="status-chip muted">Gateway check…</span>
+          <span id="connection" class="status-chip muted">Extension offline</span>
+        </div>
+      </header>
+
+      <main id="chatView" class="view chat-view">
+        <div id="emptyChat" class="empty-chat">
+          <div class="assistant-mark">PS</div>
+          <h2>What are you working on?</h2>
+          <p>This chat is saved to your account. For long-running execution, switch to Supervisor.</p>
+          <div class="suggestions">
+            <button data-suggest="Plan a safe release workflow for my project.">Plan a release workflow</button>
+            <button data-suggest="Help me turn this rough idea into a complete implementation plan.">Turn an idea into a plan</button>
+            <button data-view="supervisor">Start a supervised ChatGPT job</button>
+          </div>
+        </div>
+        <div id="messages" class="messages"></div>
+        <div class="composer-wrap">
+          <form id="chatForm" class="chat-composer">
+            <textarea id="chatInput" rows="1" placeholder="Message the Project Supervisor Assistant…"></textarea>
+            <button id="chatSend" class="send-btn" type="submit">↑</button>
+          </form>
+          <small>Assistant uses Vercel AI Gateway when configured. It does not control ChatGPT unless you use Supervisor.</small>
+        </div>
+      </main>
+
+      <main id="supervisorView" class="view supervisor-view hidden">
+        <div class="supervisor-grid">
+          <section class="classic-panel">
+            <div class="panel-title"><div><span>NEW JOB</span><h2>Supervise ChatGPT</h2></div><span id="pairBadge" class="status-chip muted">Not paired</span></div>
+            <label>Job title<input id="title" maxlength="120" placeholder="Finish Plane Alerts v5.4" /></label>
+            <label>ChatGPT Project / conversation URL<input id="projectUrl" inputmode="url" placeholder="https://chatgpt.com/..." /></label>
+            <label>Complete task<textarea id="prompt" rows="10" placeholder="Describe the complete job. The supervisor will keep this as the source of truth."></textarea></label>
+            <div class="form-row">
+              <label>No-progress watchdog<select id="stallMinutes"><option value="5">5 minutes</option><option value="10" selected>10 minutes</option><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="30">30 minutes</option></select></label>
+              <label class="check-line"><input id="strictModelGuard" type="checkbox" checked /> <span><b>Highest available model</b><small>Pause if the extension cannot verify it.</small></span></label>
+              <label class="check-line"><input id="autoContinue" type="checkbox" checked /> <span><b>Auto-continue</b><small>Only when unfinished work is explicitly reported.</small></span></label>
+            </div>
+            <button id="startButton" class="dark-btn full" disabled>Start supervised job</button>
+            <p class="form-note">The extension uses your normal logged-in ChatGPT session. It never rotates accounts or retries around plan limits.</p>
+          </section>
+
+          <section class="classic-panel ledger-panel">
+            <div class="panel-title"><div><span>LEDGER</span><h2>Jobs</h2></div><button id="refreshButton" class="square-btn">↻</button></div>
+            <div id="errorNotice" class="inline-alert hidden"></div>
+            <div id="jobs"></div>
+          </section>
+        </div>
+        <section class="setup-strip">
+          <div><b>One-time browser connection</b><span>Load the Project Supervisor Bridge extension, stay logged into ChatGPT, then use its “Open Supervisor” button to pair this site.</span></div>
+          <button id="showSetupBtn" class="outline-btn">Setup help</button>
+        </section>
+      </main>
+    </section>
+  </div>
+
+  <div id="authModal" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <button class="modal-close" data-close>×</button>
+      <div class="modal-logo">PS</div>
+      <h2 id="authTitle">Welcome back</h2>
+      <p id="authSubtitle">Log in to continue to Project Supervisor.</p>
+      <form id="authForm">
+        <label id="nameField" class="hidden">Name <input id="authName" autocomplete="name" /></label>
+        <label>Email <input id="authEmail" type="email" autocomplete="email" required /></label>
+        <label>Password <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required /></label>
+        <button id="authSubmit" class="dark-btn full" type="submit">Log in</button>
+      </form>
+      <div id="authError" class="auth-error hidden"></div>
+      <p class="auth-switch"><span id="authSwitchText">New here?</span> <button id="authSwitch" class="link-btn">Create an account</button></p>
+    </div>
+  </div>
+
+  <div id="accountModal" class="modal-backdrop hidden">
+    <div class="modal-card small-card">
+      <button class="modal-close" data-close-account>×</button>
+      <h2>Account</h2>
+      <div class="account-detail"><span>Email</span><b id="accountModalEmail"></b></div>
+      <button id="logoutBtn" class="outline-btn full">Log out</button>
+    </div>
+  </div>
+
+  <div id="setupModal" class="modal-backdrop hidden">
+    <div class="modal-card setup-card">
+      <button class="modal-close" data-close-setup>×</button>
+      <h2>Connect ChatGPT</h2>
+      <ol>
+        <li>Install the Project Supervisor Bridge extension in Chrome or Edge.</li>
+        <li>Stay logged into <b>chatgpt.com</b> in that browser.</li>
+        <li>Open the extension and click <b>Open Supervisor</b>. It pairs this site locally.</li>
+        <li>Paste the exact ChatGPT Project/conversation URL into a Supervisor job.</li>
+      </ol>
+      <p>The computer running the extension must remain awake. ChatGPT usage limits are respected and pause the job.</p>
+    </div>
+  </div>
+
   <script src="/app.js" defer></script>
 </body>
 </html>
