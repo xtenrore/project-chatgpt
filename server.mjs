@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { createReadStream, existsSync, statSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
-import { extname, join, normalize } from 'node:path'
+import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHmac } from 'node:crypto'
 
@@ -8,11 +8,12 @@ const root = fileURLToPath(new URL('.', import.meta.url))
 const port = Number(process.env.PORT || 3000)
 const dataDir = process.env.DATA_DIR || join(root, '.data')
 const dataFile = join(dataDir, 'project-supervisor.json')
-const sessionSecret = process.env.SESSION_SECRET || 'development-only-change-me'
+const sessionSecret = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'development-only-change-me')
 const gatewayKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || ''
 const assistantModel = process.env.VERCEL_ASSISTANT_MODEL || 'anthropic/claude-opus-5'
 
 mkdirSync(dataDir, { recursive: true })
+if (!sessionSecret) throw new Error('SESSION_SECRET must be configured in production.')
 
 const mime = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -21,11 +22,9 @@ const mime = {
 
 function initialDb() { return { users: [], chats: [], supervisorJobs: [] } }
 function loadDb() {
-  try {
-    if (!existsSync(dataFile)) return initialDb()
-    const parsed = JSON.parse(readFileSync(dataFile, 'utf8'))
-    return { ...initialDb(), ...parsed }
-  } catch { return initialDb() }
+  if (!existsSync(dataFile)) return initialDb()
+  const parsed = JSON.parse(readFileSync(dataFile, 'utf8'))
+  return { ...initialDb(), ...parsed }
 }
 function saveDb(db) {
   const tmp = `${dataFile}.tmp`
@@ -33,11 +32,10 @@ function saveDb(db) {
   renameSync(tmp, dataFile)
 }
 
+const publicFiles = new Set(['/', '/index.html', '/app.js', '/styles.css', '/mobile-nav.js', '/mobile-nav.css'])
 function safePath(urlPath) {
-  const decoded = decodeURIComponent(urlPath.split('?')[0] || '/')
-  const relative = normalize(decoded).replace(/^([/\\])+/, '')
-  if (relative.includes('..')) return null
-  return join(root, relative || 'index.html')
+  if (!publicFiles.has(urlPath)) return null
+  return join(root, urlPath === '/' ? 'index.html' : urlPath.slice(1))
 }
 function sendJson(res, status, data, extraHeaders = {}) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extraHeaders })
@@ -111,6 +109,15 @@ function requireUser(req, res, db) {
   if (!user) { sendJson(res, 401, { ok: false, error: 'Authentication required.' }); return null }
   return user
 }
+function sameOriginMutation(req, res) {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return true
+  const origin = req.headers.origin
+  const expected = `${req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`
+  if (origin && origin !== expected) { sendJson(res, 403, { ok: false, error: 'Cross-origin request rejected.' }); return false }
+  const fetchSite = req.headers['sec-fetch-site']
+  if (fetchSite === 'cross-site') { sendJson(res, 403, { ok: false, error: 'Cross-site request rejected.' }); return false }
+  return true
+}
 
 function chatSummary(chat) {
   return { id: chat.id, title: chat.title, createdAt: chat.createdAt, updatedAt: chat.updatedAt, messageCount: chat.messages.length }
@@ -118,6 +125,7 @@ function chatSummary(chat) {
 function ownChat(db, userId, chatId) { return db.chats.find(c => c.id === chatId && c.userId === userId) || null }
 
 async function handleApi(req, res, pathname) {
+  if (!sameOriginMutation(req, res)) return
   const db = loadDb()
 
   if (pathname === '/api/auth/signup' && req.method === 'POST') {
@@ -176,6 +184,7 @@ async function handleApi(req, res, pathname) {
     const text = String(body.message || '').trim().slice(0, 20_000)
     if (!text) return sendJson(res, 400, { ok: false, error: 'Message is required.' })
     let chat = body.chatId ? ownChat(db, user.id, String(body.chatId)) : null
+    if (body.chatId && !chat) return sendJson(res, 404, { ok: false, error: 'Chat not found.' })
     if (!chat) {
       const now = Date.now(); chat = { id: randomUUID(), userId: user.id, title: text.slice(0, 52), messages: [], createdAt: now, updatedAt: now }; db.chats.push(chat)
     }
@@ -198,8 +207,11 @@ async function handleApi(req, res, pathname) {
     const result = await response.json()
     const reply = String(result?.choices?.[0]?.message?.content || '').trim()
     if (!reply) return sendJson(res, 502, { ok: false, error: 'Vercel AI Gateway returned no assistant text.', chat })
-    chat.messages.push({ id: randomUUID(), role: 'assistant', content: reply, createdAt: Date.now() }); chat.updatedAt = Date.now(); saveDb(db)
-    return sendJson(res, 200, { ok: true, reply, chat, model: result.model || assistantModel })
+    // Reload after the remote request: another request may have saved a different chat meanwhile.
+    const latest = loadDb(); const saved = ownChat(latest, user.id, chat.id)
+    if (!saved) return sendJson(res, 409, { ok: false, error: 'Chat was deleted while the assistant was responding.' })
+    saved.messages.push({ id: randomUUID(), role: 'assistant', content: reply, createdAt: Date.now() }); saved.updatedAt = Date.now(); saveDb(latest)
+    return sendJson(res, 200, { ok: true, reply, chat: saved, model: result.model || assistantModel })
   }
 
   if (pathname === '/api/supervisor-jobs' && req.method === 'GET') {
@@ -226,9 +238,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url.pathname)
 
     let path = safePath(url.pathname)
-    if (!path) { res.writeHead(400); return res.end('Bad request') }
-    if (existsSync(path) && statSync(path).isDirectory()) path = join(path, 'index.html')
-    if (!existsSync(path) || !statSync(path).isFile()) path = join(root, 'index.html')
+    if (!path || !existsSync(path) || !statSync(path).isFile()) { res.writeHead(404); return res.end('Not found') }
     const headers = {
       'content-type': mime[extname(path).toLowerCase()] || 'application/octet-stream',
       'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY',
@@ -239,7 +249,7 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, headers); createReadStream(path).pipe(res)
   } catch (error) {
     console.error(error)
-    if (!res.headersSent) sendJson(res, 500, { ok: false, error: error instanceof Error ? error.message : 'Server error.' })
+    if (!res.headersSent) sendJson(res, 500, { ok: false, error: process.env.NODE_ENV === 'production' ? 'Server error.' : (error instanceof Error ? error.message : 'Server error.') })
     else res.end()
   }
 })

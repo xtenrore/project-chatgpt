@@ -14,6 +14,11 @@ for(let i=0;i<40;i++){ try{ const r=await fetch(`${base}/health`); if(r.ok) brea
 try {
   const health = await fetch(`${base}/health`).then(r=>r.json())
   assert.equal(health.ok,true); assert.equal(health.version,'0.2.0')
+  for (const path of ['/server.mjs', '/package.json', '/.data/project-supervisor.json', '/extension/background.js', '/%2e%2e/server.mjs']) {
+    const response = await fetch(`${base}${path}`)
+    assert.equal(response.status,404,`private path was exposed: ${path}`)
+  }
+  assert.equal((await fetch(`${base}/app.js`)).status,200)
 
   const signup = await fetch(`${base}/api/auth/signup`, { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({email:'test@example.com',password:'password123',name:'Tester'}) })
   assert.equal(signup.status,201)
@@ -22,12 +27,16 @@ try {
 
   const me = await fetch(`${base}/api/me`, { headers:{cookie} }).then(r=>r.json())
   assert.equal(me.user.email,'test@example.com')
+  const csrf = await fetch(`${base}/api/chats`, { method:'POST', headers:{cookie,origin:'https://attacker.example','content-type':'application/json'}, body:'{}' })
+  assert.equal(csrf.status,403)
 
   const create = await fetch(`${base}/api/chats`, { method:'POST', headers:{cookie,'content-type':'application/json'}, body:JSON.stringify({title:'Saved chat'}) })
   assert.equal(create.status,201)
   const chat = (await create.json()).chat
   const loaded = await fetch(`${base}/api/chats/${chat.id}`, { headers:{cookie} }).then(r=>r.json())
   assert.equal(loaded.chat.title,'Saved chat')
+  const wrongChat = await fetch(`${base}/api/assistant`, { method:'POST', headers:{cookie,'content-type':'application/json'}, body:JSON.stringify({chatId:'bad-id',message:'hello'}) })
+  assert.equal(wrongChat.status,404)
 
   const assistant = await fetch(`${base}/api/assistant`, { method:'POST', headers:{cookie,'content-type':'application/json'}, body:JSON.stringify({chatId:chat.id,message:'hello'}) })
   assert.equal(assistant.status,503)

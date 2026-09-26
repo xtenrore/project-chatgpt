@@ -3,6 +3,8 @@
   const CHANNEL = 'PROJECT_SUPERVISOR_V1'
   let requestCounter = 0
   let bridgeState = { connected: false, jobs: [] }
+  let savedJobs = []
+  const mirroredJobs = new Map()
   let currentUser = null
   let currentView = 'chat'
   let chats = []
@@ -91,6 +93,7 @@
     renderAuthState()
     if (currentUser) {
       await loadChats()
+      await loadSavedJobs()
       await refreshBridge(true)
     }
   }
@@ -102,18 +105,22 @@
       const data = await api(authMode === 'signup' ? '/api/auth/signup' : '/api/auth/login', { method: 'POST', body: payload })
       currentUser = data.user; showModal('authModal', false); $('authForm').reset()
       const me = await api('/api/me'); assistantConfigured = Boolean(me.assistant?.configured); assistantModel = me.assistant?.model || ''
-      renderAuthState(); await loadChats(); await refreshBridge(true)
+      renderAuthState(); await loadChats(); await loadSavedJobs(); await refreshBridge(true)
     } catch (error) { $('authError').textContent = error.message; $('authError').classList.remove('hidden') }
   }
 
   async function logout() {
     await api('/api/auth/logout', { method: 'POST' }).catch(() => {})
-    currentUser = null; chats = []; activeChat = null; showModal('accountModal', false); renderAuthState(); renderChatHistory(); renderMessages()
+    currentUser = null; chats = []; savedJobs = []; bridgeState = { connected:false, jobs:[] }; activeChat = null; showModal('accountModal', false); renderAuthState(); renderChatHistory(); renderMessages()
   }
 
   async function loadChats() {
     try { const data = await api('/api/chats'); chats = data.chats || [] } catch { chats = [] }
     renderChatHistory()
+  }
+  async function loadSavedJobs() {
+    try { savedJobs = (await api('/api/supervisor-jobs')).jobs || [] } catch { savedJobs = [] }
+    renderBridge()
   }
   function renderChatHistory() {
     if (!currentUser) return
@@ -177,21 +184,24 @@
     $('pairBadge').textContent = localStorage.getItem('project-supervisor-pair') ? (connected ? 'Paired' : 'Pair saved') : 'Not paired'
     $('pairBadge').className = `status-chip ${connected ? 'good' : 'muted'}`
     $('startButton').disabled = busy || !connected
-    const jobs = [...(bridgeState.jobs || [])].sort((a,b)=>b.updatedAt-a.updatedAt)
-    $('jobs').innerHTML = jobs.length ? jobs.map(job => `<article class="job-card" data-job="${esc(job.id)}"><div class="job-head"><div><h3>${esc(job.title)}</h3><span class="status-chip ${statusClass(job.status)}">${esc(prettyStatus(job.status))}</span></div><small>${esc(formatAgo(job.lastProgressAt||job.updatedAt))}</small></div><div class="job-meta"><span>Model <b>${esc(job.modelLabel||'not verified yet')}</b></span><span>Events <b>${esc(job.eventCount??0)}</b></span></div>${job.progressLabel?`<p>${esc(job.progressLabel)}</p>`:''}${job.warning?`<div class="job-warning">${esc(job.warning)}</div>`:''}<div class="job-actions"><button data-action="open">Open ChatGPT</button>${['running','recovering'].includes(job.status)?'<button data-action="pause">Pause</button>':''}${['paused_limit','needs_attention','stopped'].includes(job.status)?'<button data-action="resume">Resume</button>':''}${!['complete','stopped'].includes(job.status)?'<button data-action="stop" class="danger-link">Stop</button>':''}</div></article>`).join('') : '<div class="jobs-empty">No supervised jobs yet.</div>'
-    document.querySelectorAll('[data-job] [data-action]').forEach(btn => btn.addEventListener('click', ()=>jobAction(btn.dataset.action, btn.closest('[data-job]').dataset.job)))
+    const jobs = [...(connected ? bridgeState.jobs || [] : savedJobs)].sort((a,b)=>b.updatedAt-a.updatedAt)
+    $('jobs').innerHTML = jobs.length ? jobs.map(job => `<article class="job-card" data-job="${esc(job.id)}"><div class="job-head"><div><h3>${esc(job.title)}</h3><span class="status-chip ${statusClass(job.status)}">${esc(prettyStatus(job.status))}</span></div><small>${esc(formatAgo(job.lastProgressAt||job.updatedAt))}</small></div><div class="job-meta"><span>Model <b>${esc(job.modelLabel||'not verified yet')}</b></span>${connected?`<span>Events <b>${esc(job.eventCount??0)}</b></span>`:''}</div>${job.progressLabel?`<p>${esc(job.progressLabel)}</p>`:''}${job.warning?`<div class="job-warning">${esc(job.warning)}</div>`:''}${connected?`<div class="job-actions"><button data-action="open">Open ChatGPT</button>${['running','recovering'].includes(job.status)?'<button data-action="pause">Pause</button>':''}${['paused_limit','needs_attention','stopped'].includes(job.status)?'<button data-action="resume">Resume</button>':''}${!['complete','stopped'].includes(job.status)?'<button data-action="stop" class="danger-link">Stop</button>':''}</div>`:'<p class="form-note">Last saved snapshot. Open this page in the paired desktop browser to control or refresh the job.</p>'}</article>`).join('') : '<div class="jobs-empty">No supervised jobs yet.</div>'
+    if (connected) document.querySelectorAll('[data-job] [data-action]').forEach(btn => btn.addEventListener('click', ()=>jobAction(btn.dataset.action, btn.closest('[data-job]').dataset.job)))
   }
 
   async function refreshBridge(silent=false) {
     if (!currentUser) return
-    try { const result = await bridgeRequest('PING'); bridgeState = { ...result, connected:true }; if(!silent) showSupervisorError('') }
-    catch (error) { bridgeState.connected=false; if(!silent) showSupervisorError(error.message) }
+    try { const result = await bridgeRequest('PING'); bridgeState = { ...result, connected:true }; if(!silent) showSupervisorError(''); for (const job of result.jobs || []) void mirrorJob(job) }
+    catch (error) { bridgeState.connected=false; if(!silent) showSupervisorError(error.message); await loadSavedJobs() }
     renderBridge()
   }
 
   async function mirrorJob(job) {
     if (!currentUser || !job) return
-    await api('/api/supervisor-jobs', { method:'POST', body:{ id:job.id, title:job.title, projectUrl:job.projectUrl||'', status:job.status, progressLabel:job.progressLabel, modelLabel:job.modelLabel } }).catch(()=>{})
+    const snapshot = { id:job.id, title:job.title, projectUrl:job.projectUrl||'', status:job.status, progressLabel:job.progressLabel, modelLabel:job.modelLabel }
+    const fingerprint = JSON.stringify(snapshot)
+    if (mirroredJobs.get(job.id) === fingerprint) return
+    try { await api('/api/supervisor-jobs', { method:'POST', body:snapshot }); mirroredJobs.set(job.id, fingerprint) } catch {}
   }
 
   async function startJob() {

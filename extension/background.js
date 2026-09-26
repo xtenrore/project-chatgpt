@@ -11,6 +11,12 @@ import {
 } from './protocol.js'
 
 const defaultState = { version: VERSION, pairKey: '', allowedOrigin: '', jobs: [] }
+let stateWriteQueue = Promise.resolve()
+function withStateLock(action) {
+  const result = stateWriteQueue.then(action)
+  stateWriteQueue = result.catch(() => {})
+  return result
+}
 
 async function loadState() {
   const stored = await chrome.storage.local.get(STORAGE_KEY)
@@ -31,6 +37,7 @@ function publicState(state) {
   }
 }
 async function updateJob(jobId, mutate) {
+  return withStateLock(async () => {
   const state = await loadState()
   const index = state.jobs.findIndex(j => j.id === jobId)
   if (index < 0) return { state, job: null }
@@ -40,6 +47,7 @@ async function updateJob(jobId, mutate) {
   state.jobs[index] = next
   await saveState(state)
   return { state, job: next }
+  })
 }
 async function notify(title, message) {
   try {
@@ -77,6 +85,7 @@ async function dispatchPrompt(job, text, reason = 'initial') {
   if (!bridge) throw new Error('The ChatGPT tab opened, but the extension bridge did not become ready. Reload ChatGPT and Resume.')
   if (bridge.limitDetected) throw new Error('ChatGPT currently shows a usage limit. The supervisor will not retry around it.')
   if (bridge.generating) throw new Error('The target ChatGPT conversation is already generating. Stop that turn or use a different conversation before resuming.')
+  job.lastTerminalFingerprint = normalizeFingerprint(bridge.assistantText || '')
 
   const response = await safeSend(tab.id, {
     type: 'SUPERVISOR_SEND_PROMPT',
@@ -115,6 +124,7 @@ async function runJob(jobId, reason = 'initial') {
   return publicState(result.state)
 }
 async function createJob(payload) {
+  return withStateLock(async () => {
   const state = await loadState()
   const now = Date.now()
   const job = {
@@ -132,6 +142,7 @@ async function createJob(payload) {
   await saveState(state)
   void runJob(job.id, 'initial')
   return publicState(state)
+  })
 }
 
 async function handleTelemetry(message, sender) {
@@ -139,7 +150,7 @@ async function handleTelemetry(message, sender) {
   if (!jobId) return
   let nextReason = ''
   const { job } = await updateJob(jobId, async job => {
-    if (sender.tab?.id) job.tabId = sender.tab.id
+    if (!sender.tab?.id || sender.tab.id !== job.tabId || !['running','recovering','opening_chatgpt'].includes(job.status)) return
     job.eventCount = (job.eventCount || 0) + 1
     if (message.modelLabel) job.modelLabel = message.modelLabel
 
@@ -220,6 +231,7 @@ async function handleTelemetry(message, sender) {
 }
 
 async function watchdogTick() {
+  const recoveries = await withStateLock(async () => {
   const state = await loadState()
   const now = Date.now()
   const recoveries = []
@@ -263,8 +275,19 @@ async function watchdogTick() {
   }
 
   if (changed) await saveState(state)
+  return recoveries
+  })
   for (const recovery of recoveries) {
     const stopped = await safeSend(recovery.tabId, { type: 'SUPERVISOR_STOP_GENERATION', jobId: recovery.jobId })
+    if (!stopped?.stopped) {
+      await updateJob(recovery.jobId, async job => {
+        job.status = 'needs_attention'
+        job.warning = 'The watchdog could not confirm that the active generation stopped. Review ChatGPT before resuming.'
+        job.progressLabel = 'Recovery needs attention.'
+        job.pendingReason = ''
+      })
+      continue
+    }
     if (stopped?.assistantText) {
       await updateJob(recovery.jobId, async job => { job.lastAssistantText = String(stopped.assistantText) })
     }

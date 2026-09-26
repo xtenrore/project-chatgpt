@@ -29,7 +29,7 @@ export function buildContinuationPrompt(job, reason = 'continue') {
 
 export function parseAgentStatus(text) {
   if (!text) return null
-  const matches = [...text.matchAll(/<agent-status>(\{[\s\S]*?\})<\/agent-status>/gi)]
+  const matches = [...text.trim().matchAll(/<agent-status>(\{[\s\S]*?\})<\/agent-status>\s*$/gi)]
   if (!matches.length) return null
   try {
     const obj = JSON.parse(matches[matches.length - 1][1])

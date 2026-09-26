@@ -109,6 +109,9 @@ function normalizeOption(label) {
 function rankModelLabel(label) {
   const s = normalizeOption(label)
   if (!s || /upgrade|subscribe|learn more|get pro|try pro/.test(s)) return 0
+  if (/gpt[- ]?6\s*astra/.test(s)) return 200
+  if (/gpt[- ]?6\s*sol/.test(s)) return 190
+  if (/gpt[- ]?6\s*luna/.test(s)) return 180
   if (/gpt[- ]?6\s*pro/.test(s)) return 170
   if (/gpt[- ]?5\.6\s*(?:sol\s*)?pro/.test(s)) return 165
   if (/gpt[- ]?5\.6\s*sol/.test(s)) return 155
@@ -210,10 +213,10 @@ async function ensureHighestVisibleModel(strict) {
     const bestModel = await chooseHighestVisibleFromOpenControl(rankModelLabel)
     if (!bestModel) {
       document.body.click()
-      if (strict && rankModelLabel(model) === 0) throw new Error('Strict model guard could not identify enabled model choices. Select the highest available Chat model manually, then Resume.')
+      if (strict) throw new Error('Strict model guard could not identify enabled model choices. Select the highest available Chat model manually, then Resume.')
     } else {
       model = currentModelLabel() || bestModel.label
-      if (strict && rankModelLabel(model) && rankModelLabel(model) < bestModel.score) throw new Error(`Strict model guard found a stronger enabled model (${bestModel.label}) but could not confirm selection.`)
+      if (strict && rankModelLabel(model) < bestModel.score) throw new Error(`Strict model guard found a stronger enabled model (${bestModel.label}) but could not confirm selection.`)
     }
   }
 
@@ -238,11 +241,8 @@ async function sendPrompt(text, strictModelGuard) {
   setComposerText(composer, text)
   await new Promise(r => setTimeout(r, 180))
   const send = findSendButton()
-  if (send && !send.disabled) send.click()
-  else {
-    composer.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }))
-    composer.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', bubbles: true }))
-  }
+  if (!send || send.disabled) throw new Error('Could not confirm an enabled ChatGPT send button. Check the composer, then Resume.')
+  send.click()
   lastChangedAt = Date.now()
   return modelLabel
 }

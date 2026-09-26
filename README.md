@@ -1,8 +1,8 @@
-# Project Supervisor v0.1
+# Project Supervisor v0.2
 
 A first prototype of a persistent supervisor for long-running **ChatGPT Project** work.
 
-Production dashboard: `https://project-supervisor-production.up.railway.app`
+Dashboard configured in the extension: `https://project-supervisor-production.up.railway.app`. Check `/health` on your deployment before relying on it.
 
 The worker is the normal `chatgpt.com` tab you are already logged into. A Chrome/Edge extension stores a persistent job ledger, watches a selected ChatGPT Project conversation, pauses at product limits, detects genuine no-progress stalls, and sends checkpoint-aware continuation prompts when appropriate.
 
@@ -11,12 +11,14 @@ The worker is the normal `chatgpt.com` tab you are already logged into. A Chrome
 - **Never bypass ChatGPT limits.** A detected usage/message limit becomes `paused_limit`. There is no account rotation, hidden endpoint use, session spoofing, or retrying around the limit.
 - **Use the strongest visible Chat option.** Strict Model Guard inspects model/reasoning controls exposed to the logged-in account and attempts to select the strongest recognized enabled option. If it cannot verify the picker safely, it fails closed rather than silently downgrading.
 - **Authentication stays in ChatGPT.** The extension never asks for or stores your ChatGPT password.
-- **The dashboard or phone may be closed.** Job state lives in `chrome.storage.local`. For v0.1, the desktop computer running Chrome/Edge must remain powered on and awake and the browser must remain running.
+- **The dashboard or phone may be closed.** Job state lives in `chrome.storage.local`. The desktop computer running Chrome/Edge must remain powered on and awake and the browser must remain running. The phone displays the last mirrored snapshot while offline; it cannot control the desktop extension remotely.
 - **Fail closed on uncertainty.** A 10-minute watchdog only stops a turn when the worker is still visibly generating and no observable output has changed. Otherwise it requests attention instead of blindly clicking.
 
 ## Current behavior
 
 - Persistent jobs with original objective + exact ChatGPT Project/conversation URL.
+- Email/password accounts and saved assistant chats require server storage. Configure a persistent `DATA_DIR` volume on Railway; its default local filesystem can be lost on redeploy. Configure a unique, strong `SESSION_SECRET` in production. The server refuses to start without it.
+- The assistant requires `AI_GATEWAY_API_KEY` and provider access. Without the key, the chat assistant is unavailable; the local extension supervisor does not depend on it.
 - Structured `<agent-status>` protocol: `continue`, `complete`, or `needs_user`.
 - Terminal assistant responses are fingerprinted and processed once, preventing duplicate continuation loops.
 - Default 10-minute no-output watchdog (configurable 5–30 minutes).
@@ -60,4 +62,4 @@ Open `http://localhost:3000`. Health endpoint: `/health`.
 
 ## Prototype boundary
 
-This deliberately operates the public ChatGPT web interface instead of private ChatGPT endpoints. That means a ChatGPT UI change can require selector maintenance. Syntax, protocol, manifest, local HTTP behavior, Railway build/runtime startup, domain provisioning, and packaging are validated; the live logged-in ChatGPT selector path must be exercised from the user browser because the repository/deployment environment does not have access to the user's authenticated ChatGPT session.
+This operates the public ChatGPT web interface. UI changes can require selector maintenance. Local tests cover the protocol and server, including private file access, authentication, chat ownership and cross-origin mutations. A live logged-in ChatGPT selector path has not been verified from this repository. Job snapshots appear on a phone after the paired desktop dashboard has mirrored them; the extension's local job ledger is authoritative.
